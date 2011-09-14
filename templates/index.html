@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block container %}
+    {% for message in get_flashed_messages() %}
+        {{ message }}
+    {% endfor %}
+    <div class='grid'>
+        <table>
+            {% for row in g.game.rows %}
+                {% set y = loop.index0 %}
+                <tr>
+                    {% for letter in row %}
+                        {% set x = loop.index0 %}
+                        <td id='{{ y }}{{ x }}'><div>{{ letter }}{% if letter == 'q' %}u{% endif %}</div></td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </table>
+    </div>
+    <form action="submit" method="post">
+        <input id='word' name='word' type='text' autocomplete="off" />
+    </form>
+    {% if g.game.state == 1 %}
+        Game pending.
+    {% elif g.game.state == 2 %}
+        Game ends in {{ (g.game.end - g.now).seconds }} seconds.
+    {% elif g.game.state == 3 %}
+        Game over. Next game starts in {{ (g.next_game.start - g.now).seconds }} seconds.
+    {% endif %}
+    <p>{{ g.score }} of {{ g.max_score }} points - {{ g.entries.count() }} of {{ g.game.words.count() }} words</p>
+    <div id='leaderboard'>
+        <table>
+            <tr>
+                <th>Rank</th>
+                <th>User</th>
+                <th>Score</th>
+            </tr>
+            {% for user, score in g.leaderboard %}
+                <tr {% if user == g.user %}class="self"{% endif %}>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ user.remote_addr }} ({{ user.uuid }})</td>
+                    <td>{{ score }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>
+    <ul>
+        {% for entry in g.entries %}
+            <li>{{ entry.word.word }} ({{ entry.word.score }})</li>
+        {% endfor %}
+    </ul>
+    <div id="all_words">
+        {% if g.game.state == 3 %}
+            {% for word in g.game.words %}
+                {{ word.word }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+        {% endif %}
+    </div>
+    <script>
+        var grid = ["{{ '", "'.join(g.game.rows) | safe }}"];
+    </script>
+{% endblock %}
