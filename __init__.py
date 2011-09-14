@@ -78,7 +78,7 @@ class Game(db.Model):
 class Word(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=False)
-    game = db.relationship('Game', backref=db.backref('words', lazy='dynamic'))
+    game = db.relationship('Game', backref=db.backref('words', lazy='dynamic', cascade='all, delete'))
     word = db.Column(db.String(16), nullable=False)
     score = db.Column(db.Integer, nullable=False)
     __table_args__ = (db.UniqueConstraint('game_id', 'word'),)
@@ -92,9 +92,9 @@ class Word(db.Model):
 class Entry(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref=db.backref('entries', lazy='dynamic'))
+    user = db.relationship('User', backref=db.backref('entries', lazy='dynamic', cascade='all, delete'))
     word_id = db.Column(db.Integer, db.ForeignKey('word.id'), nullable=False)
-    word = db.relationship('Word', backref=db.backref('entries', lazy='dynamic'))
+    word = db.relationship('Word', backref=db.backref('entries', lazy='dynamic', cascade='all, delete'))
     __table_args__ = (db.UniqueConstraint('user_id', 'word_id'),)
     def __init__(self, user, word):
         self.user = user
