@@ -53,7 +53,7 @@ function update() {
 
 $(function() {
 	$('#word').focus();
-	$('#word').keyup(function() {
-		update();
+	$('#word').keydown(function() {
+		setTimeout("update();", 0);
 	});
 });

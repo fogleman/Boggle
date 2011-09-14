@@ -212,7 +212,7 @@ def submit():
             db.session.commit()
             flash('+%d points for "%s"' % (word_obj.score, word))
     else:
-        flash('"%s" is not a valid word for this grid.' % word)
+        flash('"%s" is not a valid word.' % word)
     return redirect(url_for('index'))
 
 # Main
