@@ -38,7 +38,7 @@
             {% for user, score in g.leaderboard %}
                 <tr {% if user == g.user %}class="self"{% endif %}>
                     <td>{{ loop.index }}</td>
-                    <td>({{ user.uuid }})</td>
+                    <td>{{ user.uuid }}</td>
                     <td>{{ score }}</td>
                 </tr>
             {% endfor %}
