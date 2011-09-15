@@ -20,13 +20,15 @@
     <form action="submit" method="post">
         <input id='word' name='word' type='text' autocomplete="off" />
     </form>
-    {% if g.game.state == 1 %}
-        Game pending.
-    {% elif g.game.state == 2 %}
-        Game ends in {{ (g.game.end - g.now).seconds }} seconds.
-    {% elif g.game.state == 3 %}
-        Game over. Next game starts in {{ (g.next_game.start - g.now).seconds }} seconds.
-    {% endif %}
+    <p>
+        {% if g.game.state == 1 %}
+            Game pending.
+        {% elif g.game.state == 2 %}
+            Game ends in {{ (g.game.end - g.now).seconds }} seconds.
+        {% elif g.game.state == 3 %}
+            Game over. Next game starts in {{ (g.next_game.start - g.now).seconds }} seconds.
+        {% endif %}
+    </p>
     <p>{{ g.score }} of {{ g.max_score }} points - {{ g.entries.count() }} of {{ g.game.words.count() }} words</p>
     <div id='leaderboard'>
         <table>

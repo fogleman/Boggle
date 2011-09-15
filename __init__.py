@@ -8,10 +8,7 @@ from flask import Flask, url_for, session, request, g, render_template, flash, r
 from flaskext.sqlalchemy import SQLAlchemy
 
 '''
-Room, Chat, OpenID
-Rank, Leaderboard (Live)
-N of M words, N of M points
-Qu
+Room, Chat, OpenID, Rank
 '''
 
 # Constants
