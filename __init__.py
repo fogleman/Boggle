@@ -212,6 +212,11 @@ def submit():
         flash('"%s" is not a valid word.' % word)
     return redirect(url_for('index'))
 
+@app.route('/create_games')
+def _create_games():
+    create_games(datetime.datetime.utcnow())
+    return redirect(url_for('index'))
+
 # Main
 if __name__ == '__main__':
     #reset_db()
