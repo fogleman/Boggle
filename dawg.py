@@ -10,12 +10,21 @@ def init(dll_path, dawg_path):
 def uninit():
     dll.uninit()
 
-def children(letters):
-    letters = ''.join(letters)
+def is_word(letters):
+    letters = str(letters)
+    return bool(dll.is_word('%s$' % letters))
+
+def get_children(letters):
+    letters = str(''.join(letters))
     result = create_string_buffer(32)
-    dll.getChildren(result, letters, len(letters))
+    dll.get_children(result, letters)
     return result.value
 
-def check(letters, letter):
-    letters = ''.join(letters)
-    return dll.hasChild(c_char(letter), letters, len(letters))
+def has_child(letters, letter):
+    letters = str(''.join(letters))
+    return bool(dll.has_child(letters, c_char(letter)))
+
+def find(grid, letters):
+    grid = str(grid)
+    letters = str(letters)
+    return bool(dll.find(grid, letters))

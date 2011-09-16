@@ -68,15 +68,15 @@ def _solve(grid, seen, result, letters, x, y):
     if (x, y) in seen:
         return
     letter = grid[y][x]
-    if not dawg.check(letters, letter):
+    if not dawg.has_child(letters, letter):
         return
     if letter == 'q':
-        if not dawg.check(letters + ['q'], 'u'):
+        if not dawg.has_child(letters + ['q'], 'u'):
             return
         letter = 'qu'
     seen.add((x, y))
     letters.append(letter)
-    if dawg.check(letters, '$'):
+    if dawg.has_child(letters, '$'):
         word = ''.join(letters)
         result.add(word)
     for dy in xrange(-1, 2):

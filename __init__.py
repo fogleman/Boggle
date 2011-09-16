@@ -69,33 +69,33 @@ class Game(db.Model):
     @property
     def rows(self):
         return make_rows(self.grid)
+    def check(self, word):
+        map = {16: 3, 25: 4}
+        min_length = map[len(self.grid)]
+        if len(word) < min_length:
+            return False
+        if not dawg.is_word(word):
+            return False
+        if not dawg.find(self.grid, word):
+            return False
+        return True
     def __repr__(self):
         return '<Game %r>' % self.id
 
-class Word(db.Model):
+class Entry(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=False)
     game = db.relationship('Game', backref=db.backref('words', lazy='dynamic', cascade='all, delete'))
-    word = db.Column(db.String(16), nullable=False)
-    score = db.Column(db.Integer, nullable=False)
-    __table_args__ = (db.UniqueConstraint('game_id', 'word'),)
-    def __init__(self, game, word, score):
-        self.game = game
-        self.word = word
-        self.score = score
-    def __repr__(self):
-        return '<Word %r>' % self.id
-
-class Entry(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref=db.backref('entries', lazy='dynamic', cascade='all, delete'))
-    word_id = db.Column(db.Integer, db.ForeignKey('word.id'), nullable=False)
-    word = db.relationship('Word', backref=db.backref('entries', lazy='dynamic', cascade='all, delete'))
-    __table_args__ = (db.UniqueConstraint('user_id', 'word_id'),)
-    def __init__(self, user, word):
+    word = db.Column(db.String(16), nullable=False)
+    score = db.Column(db.Integer, nullable=False)
+    __table_args__ = (db.UniqueConstraint('game_id', 'user_id', 'word'),)
+    def __init__(self, game, user, word, score):
+        self.game = game
         self.user = user
         self.word = word
+        self.score = score
     def __repr__(self):
         return '<Entry %r>' % self.id
 
@@ -137,29 +137,25 @@ def create_games(day):
             end = start + datetime.timedelta(seconds=180)
             size = 4 + index % 2
             grid = boggle.create(size)
-            _grid = ''.join(grid)
-            game = Game(_grid, start, end)
+            grid = ''.join(grid)
+            game = Game(grid, start, end)
             db.session.add(game)
-            words = boggle.solve(grid, size - 1)
-            for word in words:
-                word_obj = Word(game, word, boggle.score(word))
-                db.session.add(word_obj)
-            print index, start.strftime('%Y-%m-%d %H:%M'), len(words), _grid
             index += 1
     db.session.commit()
 
 def purge_games():
+    # TODO: improve query
     now = datetime.datetime.utcnow()
     games = Game.query.filter(Game.end < now).all()
     total = 0
     count = 0
     for game in games:
         total += 1
-        n = Entry.query.join(Word).filter(Word.game_id == game.id).count()
-        if n == 0:
+        if not game.entries.count():
             count += 1
             db.session.delete(game)
-    db.session.commit()
+            db.session.commit()
+    db.engine.execute('VACUUM;')
     return count, total
 
 # Hooks
@@ -193,10 +189,9 @@ def inject_game():
     g.now = datetime.datetime.utcnow()
     g.game = get_current_game()
     g.next_game = get_next_game()
-    g.entries = Entry.query.join(Word).filter(Entry.user_id == g.user.id).filter(Word.game_id == g.game.id).order_by(Word.word)
-    g.score = sum(entry.word.score for entry in g.entries)
-    g.max_score = sum(word.score for word in g.game.words)
-    scores = db.session.query(Entry.user_id, db.func.sum(Word.score)).join(Word).filter(Word.game_id == g.game.id).group_by(Entry.user_id).all()
+    g.entries = Entry.query.filter_by(game_id=g.game.id, user_id=g.user.id).order_by('word')
+    g.score = sum(entry.score for entry in g.entries)
+    scores = db.session.query(Entry.user_id, db.func.sum(Entry.score)).filter_by(game_id=g.game.id).group_by(Entry.user_id).all()
     leaderboard = [(User.query.get(user_id), score) for user_id, score in scores]
     leaderboard.sort(key=operator.itemgetter(1), reverse=True)
     g.leaderboard = leaderboard
@@ -209,19 +204,18 @@ def index():
 @app.route('/submit', methods=['POST'])
 def submit():
     game = get_current_game()
-    word = request.form['word']
-    word_obj = game.words.filter_by(word=word).first()
+    word = request.form['word'].lower()
     if game.state != Game.ACTIVE:
         flash('Game is over.')
-    elif word_obj:
-        entry = g.user.entries.filter_by(word_id=word_obj.id).first()
+    elif game.check(word):
+        entry = Entry.query.filter_by(game_id=game.id, user_id=g.user.id, word=word).first()
         if entry:
             flash('You already submitted that word.')
         else:
-            entry = Entry(g.user, word_obj)
+            entry = Entry(game, g.user, word, boggle.score(word))
             db.session.add(entry)
             db.session.commit()
-            flash('+%d points for "%s"' % (word_obj.score, word))
+            flash('+%d points for "%s"' % (entry.score, word))
     else:
         flash('"%s" is not a valid word.' % word)
     return redirect(url_for('index'))

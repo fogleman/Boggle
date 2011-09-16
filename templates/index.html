@@ -29,7 +29,7 @@
             Game over. Next game starts in {{ (g.next_game.start - g.now).seconds }} seconds.
         {% endif %}
     </p>
-    <p>{{ g.score }} of {{ g.max_score }} points - {{ g.entries.count() }} of {{ g.game.words.count() }} words</p>
+    <p>{{ g.entries.count() }} words - {{ g.score }} points</p>
     <div id='leaderboard'>
         <table>
             <tr>
@@ -48,16 +48,9 @@
     </div>
     <ul>
         {% for entry in g.entries %}
-            <li>{{ entry.word.word }} ({{ entry.word.score }})</li>
+            <li>{{ entry.word }} ({{ entry.score }})</li>
         {% endfor %}
     </ul>
-    <div id="all_words">
-        {% if g.game.state == 3 %}
-            {% for word in g.game.words %}
-                {{ word.word }}{% if not loop.last %}, {% endif %}
-            {% endfor %}
-        {% endif %}
-    </div>
     <script>
         var grid = ["{{ '", "'.join(g.game.rows) | safe }}"];
     </script>

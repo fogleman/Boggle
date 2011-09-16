@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define FAILED 0xffffffff
 
@@ -13,7 +14,7 @@ typedef unsigned int DawgRecord;
 // Loading Functions
 DawgRecord* dawg;
 
-char* loadFile(char* path) {
+char* load_file(char* path) {
     FILE* file = fopen(path, "rb");
     fseek(file, 0, SEEK_END);
     int length = ftell(file);
@@ -25,7 +26,7 @@ char* loadFile(char* path) {
 }
 
 void init(char* dawgPath) {
-    dawg = (DawgRecord*)loadFile(dawgPath);
+    dawg = (DawgRecord*)load_file(dawgPath);
 }
 
 void uninit() {
@@ -33,7 +34,7 @@ void uninit() {
 }
 
 // Dawg Functions
-int getDawgRecord(DawgRecord* records, int index, char letter) {
+int get_dawg_record(DawgRecord* records, int index, char letter) {
     DawgRecord record;
     while (1) {
         record = records[index];
@@ -47,12 +48,26 @@ int getDawgRecord(DawgRecord* records, int index, char letter) {
     }
 }
 
-void getChildren(char* result, char* letters, int length) {
+int is_word(char* letters) {
+    int length = strlen(letters);
     int index = 0;
     for (int i = 0; i < length; i++) {
-        index = getDawgRecord(dawg, index, letters[i]);
+        index = get_dawg_record(dawg, index, letters[i]);
         if (index == FAILED) {
-        	result[0] = '\0';
+            return 0;
+        }
+        index = DAWG_LINK(dawg[index]);
+    }
+    return 1;
+}
+
+void get_children(char* result, char* letters) {
+    int length = strlen(letters);
+    int index = 0;
+    for (int i = 0; i < length; i++) {
+        index = get_dawg_record(dawg, index, letters[i]);
+        if (index == FAILED) {
+            result[0] = '\0';
             return;
         }
         index = DAWG_LINK(dawg[index]);
@@ -60,20 +75,21 @@ void getChildren(char* result, char* letters, int length) {
     DawgRecord record;
     int i = 0;
     while (1) {
-    	record = dawg[index];
-    	result[i++] = DAWG_LETTER(record);
-    	if (!DAWG_MORE(record)) {
-    		result[i++] = '\0';
-    		return;
-    	}
-    	index++;
+        record = dawg[index];
+        result[i++] = DAWG_LETTER(record);
+        if (!DAWG_MORE(record)) {
+            result[i++] = '\0';
+            return;
+        }
+        index++;
     }
 }
 
-int hasChild(char letter, char* letters, int length) {
+int has_child(char* letters, char letter) {
+    int length = strlen(letters);
     int index = 0;
     for (int i = 0; i < length; i++) {
-        index = getDawgRecord(dawg, index, letters[i]);
+        index = get_dawg_record(dawg, index, letters[i]);
         if (index == FAILED) {
             return 0;
         }
@@ -81,13 +97,63 @@ int hasChild(char letter, char* letters, int length) {
     }
     DawgRecord record;
     while (1) {
-    	record = dawg[index];
-    	if (letter == DAWG_LETTER(record)) {
-    		return 1;
-    	}
-    	if (!DAWG_MORE(record)) {
-    		return 0;
-    	}
-    	index++;
+        record = dawg[index];
+        if (letter == DAWG_LETTER(record)) {
+            return 1;
+        }
+        if (!DAWG_MORE(record)) {
+            return 0;
+        }
+        index++;
     }
+}
+
+// Grid Functions
+int _find(char* grid, char* word, int* seen, int size, int length, int index, int x, int y) {
+    if (x < 0 || y < 0 || x >= size || y >= size) {
+        return 0;
+    }
+    int i = y * size + x;
+    if (seen[i]) {
+        return 0;
+    }
+    if (grid[i] != word[index]) {
+        return 0;
+    }
+    if (index == length - 1) {
+        return 1;
+    }
+    for (int dy = -1; dy <= 1; dy++) {
+        for (int dx = -1; dx <= 1; dx++) {
+            seen[i] = 1;
+            int found = _find(grid, word, seen, size, length, index + 1, x + dx, y + dy);
+            seen[i] = 0;
+            if (found) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+int find(char* grid, char* word) {
+    int length = strlen(word);
+    int size;
+    switch (strlen(grid)) {
+        case 16: size = 4; break;
+        case 25: size = 5; break;
+        default: return 0;
+    }
+    int* seen = calloc(size * size, sizeof(int));
+    for (int y = 0; y < size; y++) {
+        for (int x = 0; x < size; x++) {
+            int found = _find(grid, word, seen, size, length, 0, x, y);
+            if (found) {
+                free(seen);
+                return 1;
+            }
+        }
+    }
+    free(seen);
+    return 0;
 }
