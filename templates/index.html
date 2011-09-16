@@ -6,7 +6,7 @@
     {% endfor %}
     <div class='grid'>
         <table>
-            {% for row in g.game.rows %}
+            {% for row in game.rows %}
                 {% set y = loop.index0 %}
                 <tr>
                     {% for letter in row %}
@@ -21,15 +21,15 @@
         <input id='word' name='word' type='text' autocomplete="off" />
     </form>
     <p>
-        {% if g.game.state == 1 %}
+        {% if game.state == 1 %}
             Game pending.
-        {% elif g.game.state == 2 %}
-            Game ends in {{ (g.game.end - g.now).seconds }} seconds.
-        {% elif g.game.state == 3 %}
-            Game over. {% if g.next_game %}Next game starts in {{ (g.next_game.start - g.now).seconds }} seconds.{% endif %}
+        {% elif game.state == 2 %}
+            Game ends in {{ (game.end - now).seconds }} seconds.
+        {% elif game.state == 3 %}
+            Game over. {% if next_game %}Next game starts in {{ (next_game.start - now).seconds }} seconds.{% endif %}
         {% endif %}
     </p>
-    <p>{{ g.score }} points - {{ g.entries.count() }} of {{ g.words|length }} words</p>
+    <p>{{ score }} points - {{ entries.count() }} of {{ game.get_words()|length }} words</p>
     <div id='leaderboard'>
         <table>
             <tr>
@@ -37,7 +37,7 @@
                 <th>User</th>
                 <th>Score</th>
             </tr>
-            {% for user, score in g.leaderboard %}
+            {% for user, score in leaderboard %}
                 <tr {% if user == g.user %}class="self"{% endif %}>
                     <td>{{ loop.index }}</td>
                     <td>Anonymous{{ user.id }}</td>
@@ -47,18 +47,18 @@
         </table>
     </div>
     <ul>
-        {% for entry in g.entries %}
+        {% for entry in entries %}
             <li>{{ entry.word }} ({{ entry.score }})</li>
         {% endfor %}
     </ul>
     <div>
-        {% if g.game.state == 3 %}
-            {% for word in g.words %}
+        {% if game.state == 3 %}
+            {% for word in game.get_words() %}
                 {{ word }}{% if not loop.last %}, {% endif %}
             {% endfor %}
         {% endif %}
     </div>
     <script>
-        var grid = ["{{ '", "'.join(g.game.rows) | safe }}"];
+        var grid = ["{{ '", "'.join(game.rows) | safe }}"];
     </script>
 {% endblock %}

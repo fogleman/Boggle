@@ -1,8 +1,8 @@
-import os
-import operator
 import boggle
-import dawg
 import datetime
+import dawg
+import operator
+import os
 import uuid
 from flask import Flask, url_for, session, request, g, render_template, flash, redirect
 from flaskext.sqlalchemy import SQLAlchemy
@@ -17,14 +17,14 @@ ACTIVE_TIMEOUT = 10
 
 # Flask
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'SECRET_KEY'
+app.config['SECRET_KEY'] = '\x12\x83\xe2\x11\xd8%4aH\x86\xae\x18\xd6R\xe8A\xd0F\x03\xfc\x9b)J\x8f'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 db = SQLAlchemy(app)
 cache = SimpleCache()
 
 dawg.init(
     os.path.join(app.root_path, '_dawg'),
-    os.path.join(app.root_path, 'files/twl.dawg'),
+    os.path.join(app.root_path, 'files/sowpods.dawg'),
 )
 
 # Models
@@ -77,12 +77,15 @@ class Game(db.Model):
         return map[len(self.grid)]
     def check(self, word):
         if len(word) < self.min_length:
-            return False
+            message = 'Words must be at least %d letters long.' % self.min_length
+            return False, message
         if not dawg.is_word(word):
-            return False
+            message = '"%s" is not in the dictionary.' % word
+            return False, message
         if not dawg.find(self.grid, word):
-            return False
-        return True
+            message = '"%s" cannot be formed in this puzzle.' % word
+            return False, message
+        return True, None
     def get_words(self):
         key = 'words_%d' % self.id
         result = cache.get(key)
@@ -134,40 +137,32 @@ def get_active_users():
 
 def get_current_game():
     now = datetime.datetime.utcnow()
-    return Game.query.filter(Game.start <= now).order_by(db.desc('start')).first()
+    game = Game.query.filter(Game.start <= now).order_by(db.desc('start')).first()
+    if game is None:
+        game = create_game(now, 0)
+    return game
 
 def get_next_game():
     now = datetime.datetime.utcnow()
-    return Game.query.filter(Game.start > now).order_by('start').first()
+    game = Game.query.filter(Game.start > now).order_by('start').first()
+    if game is None:
+        game = create_game(now, 1)
+    return game
 
-def create_games(day):
-    index = 0
-    for hour in range(24):
-        for minute in range(0, 60, 4):
-            start = day.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            end = start + datetime.timedelta(seconds=180)
-            size = 4 + index % 2
-            grid = boggle.create(size)
-            grid = ''.join(grid)
-            game = Game(grid, start, end)
-            db.session.add(game)
-            index += 1
+def create_game(when, offset):
+    duration = datetime.timedelta(seconds=60 * 3)
+    spacing = datetime.timedelta(seconds=60 * 4)
+    when = when + spacing * offset
+    minute = when.minute - when.minute % 4
+    start = when.replace(minute=minute, second=0, microsecond=0)
+    end = start + duration
+    size = 4 + (minute / 4) % 2
+    grid = boggle.create(size)
+    grid = ''.join(grid)
+    game = Game(grid, start, end)
+    db.session.add(game)
     db.session.commit()
-
-def purge_games():
-    # TODO: improve query
-    now = datetime.datetime.utcnow()
-    games = Game.query.filter(Game.end < now).all()
-    total = 0
-    count = 0
-    for game in games:
-        total += 1
-        if not game.entries.count():
-            count += 1
-            db.session.delete(game)
-            db.session.commit()
-    db.engine.execute('VACUUM;')
-    return count, total
+    return game
 
 # Hooks
 def static(filename):
@@ -179,6 +174,8 @@ def inject_static():
 
 @app.before_request
 def inject_user():
+    if request.endpoint == 'static':
+        return
     session.permanent = True
     if 'uuid' in session:
         uuid = session['uuid']
@@ -195,56 +192,48 @@ def inject_user():
         db.session.commit()
     g.user = user
 
-@app.before_request
-def inject_game():
-    g.now = datetime.datetime.utcnow()
-    g.game = get_current_game()
-    g.next_game = get_next_game()
-    g.words = g.game.get_words()
-    g.entries = Entry.query.filter_by(game_id=g.game.id, user_id=g.user.id).order_by('word')
-    g.score = sum(entry.score for entry in g.entries)
-    scores = db.session.query(Entry.user_id, db.func.sum(Entry.score)).filter_by(game_id=g.game.id).group_by(Entry.user_id).all()
-    leaderboard = [(User.query.get(user_id), score) for user_id, score in scores]
-    leaderboard.sort(key=operator.itemgetter(1), reverse=True)
-    g.leaderboard = leaderboard
-
 # Views
 @app.route('/')
 def index():
-    return render_template('index.html')
+    now = datetime.datetime.utcnow()
+    game = get_current_game()
+    next_game = get_next_game()
+    entries = Entry.query.filter_by(game_id=game.id, user_id=g.user.id).order_by(db.desc('score'), 'word')
+    score = sum(entry.score for entry in entries)
+    scores = db.session.query(Entry.user_id, db.func.sum(Entry.score)).filter_by(game_id=game.id).group_by(Entry.user_id).all()
+    leaderboard = [(User.query.get(user_id), score) for user_id, score in scores]
+    leaderboard.sort(key=operator.itemgetter(1), reverse=True)
+    context = {
+        'now': now,
+        'game': game,
+        'next_game': next_game,
+        'entries': entries,
+        'score': score,
+        'leaderboard': leaderboard,
+    }
+    return render_template('index.html', **context)
 
 @app.route('/submit', methods=['POST'])
 def submit():
     game = get_current_game()
     word = request.form['word'].lower()
+    valid, message = game.check(word)
     if game.state != Game.ACTIVE:
-        flash('Game is over.')
-    elif game.check(word):
+        flash('The game has ended.')
+    elif valid:
         entry = Entry.query.filter_by(game_id=game.id, user_id=g.user.id, word=word).first()
         if entry:
-            flash('You already submitted that word.')
+            flash('You already submitted "%s."' % word)
         else:
             entry = Entry(game, g.user, word, boggle.score(word))
             db.session.add(entry)
             db.session.commit()
-            flash('+%d points for "%s"' % (entry.score, word))
+            flash('+%d points for "%s."' % (entry.score, word))
     else:
-        flash('"%s" is not a valid word.' % word)
-    return redirect(url_for('index'))
-
-@app.route('/create_games')
-def _create_games():
-    create_games(datetime.datetime.utcnow())
-    return redirect(url_for('index'))
-
-@app.route('/purge_games')
-def _purge_games():
-    count, total = purge_games()
-    flash('Purged %d of %d old games.' % (count, total))
+        flash(message)
     return redirect(url_for('index'))
 
 # Main
 if __name__ == '__main__':
     #reset_db()
-    #create_games(datetime.datetime.utcnow())
     app.run(host='0.0.0.0', debug=True, threaded=True)
