@@ -26,7 +26,7 @@
         {% elif g.game.state == 2 %}
             Game ends in {{ (g.game.end - g.now).seconds }} seconds.
         {% elif g.game.state == 3 %}
-            Game over. Next game starts in {{ (g.next_game.start - g.now).seconds }} seconds.
+            Game over. {% if g.next_game %}Next game starts in {{ (g.next_game.start - g.now).seconds }} seconds.{% endif %}
         {% endif %}
     </p>
     <p>{{ g.entries.count() }} words - {{ g.score }} points</p>
