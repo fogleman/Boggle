@@ -148,6 +148,20 @@ def create_games(day):
             index += 1
     db.session.commit()
 
+def purge_games():
+    now = datetime.datetime.utcnow()
+    games = Game.query.filter(Game.end < now)
+    total = 0
+    count = 0
+    for game in games:
+        total += 1
+        n = Entry.query.join(Word).filter_by(Word.game_id == game.id).count()
+        if n == 0:
+            count += 1
+            db.session.delete(game)
+    db.session.commit()
+    return count, total
+
 # Hooks
 def static(filename):
     return url_for('static', filename=filename)
@@ -215,6 +229,12 @@ def submit():
 @app.route('/create_games')
 def _create_games():
     create_games(datetime.datetime.utcnow())
+    return redirect(url_for('index'))
+
+@app.route('/purge_games')
+def _purge_games():
+    count, total = purge_games()
+    flash('Purged %d of %d old games.' % (count, total))
     return redirect(url_for('index'))
 
 # Main
