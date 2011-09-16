@@ -53,9 +53,7 @@
     </ul>
     <div>
         {% if game.state == 3 %}
-            {% for word in game.get_words() %}
-                {{ word }}{% if not loop.last %}, {% endif %}
-            {% endfor %}
+            {% for word in game.get_words() %}{{ word }}{% if not loop.last %}, {% endif %}{% endfor %}
         {% endif %}
     </div>
     <script>
