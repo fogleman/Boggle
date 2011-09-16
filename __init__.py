@@ -6,6 +6,7 @@ import datetime
 import uuid
 from flask import Flask, url_for, session, request, g, render_template, flash, redirect
 from flaskext.sqlalchemy import SQLAlchemy
+from werkzeug.contrib.cache import SimpleCache
 
 '''
 Room, Chat, OpenID, Rank
@@ -19,6 +20,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'SECRET_KEY'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 db = SQLAlchemy(app)
+cache = SimpleCache()
 
 dawg.init(
     os.path.join(app.root_path, '_dawg'),
@@ -68,17 +70,26 @@ class Game(db.Model):
         return map[self.state]
     @property
     def rows(self):
-        return make_rows(self.grid)
-    def check(self, word):
+        return make_rows(str(self.grid))
+    @property
+    def min_length(self):
         map = {16: 3, 25: 4}
-        min_length = map[len(self.grid)]
-        if len(word) < min_length:
+        return map[len(self.grid)]
+    def check(self, word):
+        if len(word) < self.min_length:
             return False
         if not dawg.is_word(word):
             return False
         if not dawg.find(self.grid, word):
             return False
         return True
+    def get_words(self):
+        key = 'words_%d' % self.id
+        result = cache.get(key)
+        if result is None:
+            result = boggle.solve(self.rows, self.min_length)
+            cache.set(key, result, timeout=300)
+        return result
     def __repr__(self):
         return '<Game %r>' % self.id
 
@@ -189,6 +200,7 @@ def inject_game():
     g.now = datetime.datetime.utcnow()
     g.game = get_current_game()
     g.next_game = get_next_game()
+    g.words = g.game.get_words()
     g.entries = Entry.query.filter_by(game_id=g.game.id, user_id=g.user.id).order_by('word')
     g.score = sum(entry.score for entry in g.entries)
     scores = db.session.query(Entry.user_id, db.func.sum(Entry.score)).filter_by(game_id=g.game.id).group_by(Entry.user_id).all()
