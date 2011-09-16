@@ -150,12 +150,12 @@ def create_games(day):
 
 def purge_games():
     now = datetime.datetime.utcnow()
-    games = Game.query.filter(Game.end < now)
+    games = Game.query.filter(Game.end < now).all()
     total = 0
     count = 0
     for game in games:
         total += 1
-        n = Entry.query.join(Word).filter_by(Word.game_id == game.id).count()
+        n = Entry.query.join(Word).filter(Word.game_id == game.id).count()
         if n == 0:
             count += 1
             db.session.delete(game)
