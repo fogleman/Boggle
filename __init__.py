@@ -70,7 +70,7 @@ class Game(db.Model):
         return map[self.state]
     @property
     def rows(self):
-        return make_rows(str(self.grid))
+        return make_rows(self.grid)
     @property
     def min_length(self):
         map = {16: 3, 25: 4}

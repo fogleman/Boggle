@@ -22,6 +22,7 @@ def get_children(letters):
 
 def has_child(letters, letter):
     letters = str(''.join(letters))
+    letter = str(letter)
     return bool(dll.has_child(letters, c_char(letter)))
 
 def find(grid, letters):
