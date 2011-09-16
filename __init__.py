@@ -136,8 +136,9 @@ def get_active_users():
     return User.query.filter(User.timestamp >= timestamp)
 
 def get_current_game():
+    spacing = datetime.timedelta(seconds=60)
     now = datetime.datetime.utcnow()
-    game = Game.query.filter(Game.start <= now).order_by(db.desc('start')).first()
+    game = Game.query.filter(Game.start <= now).filter(Game.end > now - spacing).order_by(db.desc('start')).first()
     if game is None:
         game = create_game(now, 0)
     return game

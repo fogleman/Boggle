@@ -120,6 +120,15 @@ int _find(char* grid, char* word, int* seen, int size, int length, int index, in
     if (grid[i] != word[index]) {
         return 0;
     }
+    if (grid[i] == 'q') {
+        if (index == length - 1) {
+            return 0;
+        }
+        if (word[index + 1] != 'u') {
+            return 0;
+        }
+        index++;
+    }
     if (index == length - 1) {
         return 1;
     }
