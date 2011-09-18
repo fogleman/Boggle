@@ -202,7 +202,7 @@ def index():
     entries = Entry.query.filter_by(game_id=game.id, user_id=g.user.id).order_by(db.desc('score'), 'word')
     score = sum(entry.score for entry in entries)
     scores = db.session.query(Entry.user_id, db.func.sum(Entry.score)).filter_by(game_id=game.id).group_by(Entry.user_id).all()
-    leaderboard = [(User.query.get(user_id), score) for user_id, score in scores]
+    leaderboard = [(User.query.get(user_id), user_score) for user_id, user_score in scores]
     leaderboard.sort(key=operator.itemgetter(1), reverse=True)
     context = {
         'now': now,
