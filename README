@@ -1,0 +1,4 @@
+Play at: http://mfogleman.webfactional.com/boggle/
+
+Web-based Boggle implementation (using Python and Flask) with a 
+high-performance C DAWG data structure for dictionary checks.
