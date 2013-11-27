@@ -138,9 +138,13 @@ def score(word):
     return map.get(length, 11)
 
 def main():
-    grid = create(4)
+    dawg.init(
+        '_dawg',
+        'files/sowpods.dawg',
+    )
+    grid = create(5)
     print '\n'.join(grid)
-    words = solve(grid, 3)
+    words = solve(grid, 4)
     print len(words)
     print sum(score(x) for x in words)
     print words
